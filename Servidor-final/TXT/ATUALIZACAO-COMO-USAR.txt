@@ -1,0 +1,13 @@
+PACOTE DE ATUALIZACAO
+=====================
+
+Quando houver alteracao no sistema, sera gerada a pasta:
+
+  atualização\
+
+Coloque essa pasta DENTRO de Servidor-final no PC servidor e
+dê duplo clique no Atualizar.cmd que estiver dentro dela.
+
+Ela ja vem com o codigo necessario + o instalador da atualizacao
+(npm install e reinicio do Vite), sem apagar config.env, certificados
+nem dados do Supabase.

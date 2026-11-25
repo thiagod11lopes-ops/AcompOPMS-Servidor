@@ -1,0 +1,59 @@
+VIRTUALIZACAO NA BIOS (necessaria para o Docker)
+================================================
+
+O que e
+-------
+E uma opcao da placa-mae que permite o Windows criar "maquinas virtuais"
+leves. O Docker Desktop no Windows usa isso (via WSL2 / Hyper-V) para
+rodar os containers do Supabase e do gateway HTTPS.
+
+Em muitos PCs ja vem ligada. Se estiver desligada, o Docker nao sobe
+direito (erro de WSL / Hyper-V).
+
+
+Como conferir no Windows (sem abrir a BIOS)
+-------------------------------------------
+1. Tecla Windows → digite: Informacoes do sistema
+2. Abra "Informacoes do sistema"
+3. Procure:
+     - Virtualizacao baseada em Hyper-V
+     - ou Virtualizacao
+4. Deve aparecer: Sim / Ativado
+
+Se aparecer Nao / Desativado, siga a secao abaixo.
+
+
+Como ligar na BIOS / UEFI
+-------------------------
+1. Reinicie o computador
+2. Na tela inicial (logo do fabricante), pressione a tecla de entrada
+   na BIOS. Em geral: Del, F2 ou F10
+   (a tecla correta costuma aparecer na tela por alguns segundos)
+3. Procure uma destas opcoes (o nome varia por fabricante):
+     - Intel VT-x
+     - Intel Virtualization Technology
+     - AMD-V
+     - SVM Mode
+     - Virtualization Technology
+4. Coloque em Enabled / Ativado
+5. Salve e saia (em geral F10 → Yes / Save & Exit)
+6. O Windows reinicia normalmente
+
+
+Quando e obrigatorio mexer nisso
+--------------------------------
+So precisa alterar a BIOS se, na instalacao do Servidor-final, o Docker
+falhar por virtualizacao / WSL / Hyper-V.
+
+Se "Informacoes do sistema" ja mostrar virtualizacao Ativada, nao e
+preciso entrar na BIOS.
+
+
+Relacao com a instalacao AcompOPMS
+----------------------------------
+Pasta: Desktop\Servidor-final
+Entrada: Instalar-Servidor-AcompOPMS.cmd
+Senha do assistente: Marinha
+
+Apos WSL / Docker, o Windows pode pedir reinicio. Aceite, espere o
+Docker Desktop ficar Ready e continue as etapas do assistente.

@@ -1,0 +1,8 @@
+Coloque nesta pasta os instaladores (mesmos nomes aproximados):
+
+- Docker Desktop Installer.exe
+- node-v22.xx.x-x64.msi
+- vc_redist.x64.exe
+- wsl_update_x64.msi
+
+O painel "Servidor OMPS" usa estes arquivos no botao Instalar.

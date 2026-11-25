@@ -1,0 +1,13 @@
+﻿PACOTE SERVIDOR — AcompOPMS
+===========================
+Copie esta pasta INTEIRA para o PC que sera o servidor.
+
+1) Duplo clique em "Instalar Servidor"
+2) Senha: Marinha
+3) Siga o assistente (Docker, Node, rede, HTTPS, Dashboard)
+4) Ao final, use o atalho Desktop "Servidor" (Dashboard)
+
+Clientes da rede: use o icone Desktop "Instalar ClienteOMPS"
+ou o ZIP Instalar-ClienteOMPS-Portatil.zip (pasta Arquivos / nesta pasta).
+
+Gerado em: 2026-11-08 22:25

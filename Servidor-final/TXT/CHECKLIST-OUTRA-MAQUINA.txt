@@ -1,0 +1,36 @@
+CHECKLIST — Pasta unica "Servidor-final"
+========================================
+
+Senha do assistente: Marinha
+
+A) COPIAR
+  Leve a pasta inteira:
+    Desktop\Servidor-final
+  (ja inclui programas + Arquivos\Servidor)
+
+B) NO PC SERVIDOR
+  1. Coloque "Servidor-final" no Desktop
+  2. Rode Instalar-Servidor-AcompOPMS.cmd
+  3. Senha: Marinha
+  4. Conclua as 12 etapas (Docker Ready se pedir reinicio)
+  5. Atalho Servidor AcompOPMS → Iniciar servidor
+
+C) VALIDAR NO DASHBOARD
+  [ ] Docker Online
+  [ ] Supabase Online
+  [ ] Vite Online
+  [ ] Gateway Online
+  [ ] IP HTTPS aparece (https://192.168.x.x/)
+
+D) CLIENTE NA REDE
+  [ ] Abrir https://IP-DO-SERVIDOR/
+  [ ] Instalar PWA / abrir pelo atalho
+
+E) CONTEUDO DESTA PASTA
+  Servidor-final\
+    Instalar-Servidor-AcompOPMS.cmd   ← comece aqui
+    Instalar-Servidor-AcompOPMS.ps1
+    instaladores\                     Docker, Node, VC++, WSL
+    Arquivos\Servidor\                pacote do sistema
+    LEIA-ME.txt
+    CHECKLIST-OUTRA-MAQUINA.txt

@@ -1,0 +1,20 @@
+SERVIDOR FINAL — AcompOPMS
+==========================
+
+Esta pasta unica contem TUDO para transformar um PC no servidor da rede:
+  - instaladores\     Docker, Node, Visual C++, WSL
+  - Arquivos\Servidor pacote do sistema (Dashboard verde, frontend, Supabase…)
+
+COMO USAR EM OUTRO PC
+---------------------
+1. Copie a pasta inteira "Servidor-final" para o Desktop do PC servidor
+   (ou rode direto do pendrive, preferivel copiar para o Desktop).
+2. Duplo clique em: Instalar-Servidor-AcompOPMS.cmd
+3. Senha do assistente: Marinha
+4. Siga as 12 etapas. Aceite UAC quando pedir.
+5. Abra o atalho "Servidor AcompOPMS" → Iniciar servidor
+6. Anote o https://IP/ e use nos PCs clientes da rede
+
+Detalhes e validacao: CHECKLIST-OUTRA-MAQUINA.txt
+
+NAO use o Servidor Manager azul (Electron). Use o Dashboard verde.

@@ -1,0 +1,480 @@
+import { useRef, useState } from 'react'
+import { Add as AddIcon, Close as CloseIcon } from '@mui/icons-material'
+import {
+  Alert,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Snackbar,
+  TextField,
+  Typography,
+} from '@mui/material'
+import type { ListaMedicamentosFormData, ListaMedicamentosLinha } from '@/types'
+import { ConmedEscolherAbaModal } from '@/components/clinica/ConmedEscolherAbaModal'
+import { ListaMedicamentoMovimentacaoModal } from '@/components/clinica/ListaMedicamentoMovimentacaoModal'
+import { ListaMedicamentosPlanilhaPreview } from '@/components/clinica/ListaMedicamentosPlanilhaPreview'
+import { MedicamentoAbasExplicacaoModal } from '@/components/clinica/MedicamentoAbasExplicacaoModal'
+import {
+  aplicarMovimentacaoListaMedicamentos,
+  createEmptyListaMedicamentosLinha,
+  formatListaMedAvisoValidadeDias,
+  formatListaMedNeb,
+  formatListaMedNome,
+  formatListaMedPreco,
+  formatListaMedQtd,
+  formatListaMedUf,
+  formatListaMedLote,
+  formatListaMedValidade,
+  linhaListaMedicamentosHasContent,
+  normalizeListaMedicamentosForm,
+  sortListaMedicamentosLinhas,
+  withNormalizedListaMedicamentosLinha,
+} from '@/utils/listaMedicamentosForm'
+import {
+  findListaMedicamentosSheetIndex,
+  loadListaMedicamentosSheetsFromFile,
+  mergeListaMedicamentosImport,
+  parseListaMedicamentosFromGrid,
+} from '@/utils/listaMedicamentosImport'
+import type { SpreadsheetSheetImport } from '@/utils/consumoMaterialOds'
+
+interface ListaMedicamentosFormProps {
+  value: ListaMedicamentosFormData
+  onChange: (next: ListaMedicamentosFormData) => void
+}
+
+const compactFieldSx = {
+  '& .MuiInputBase-root': { fontSize: '0.78rem' },
+  '& .MuiInputBase-input': { fontSize: '0.78rem', py: 0.65 },
+  '& .MuiInputLabel-root': { fontSize: '0.78rem' },
+} as const
+
+const multilineFieldSx = {
+  ...compactFieldSx,
+  gridColumn: '1 / -1',
+  '& .MuiInputBase-root': {
+    fontSize: '0.78rem',
+    alignItems: 'flex-start',
+  },
+  '& .MuiInputBase-input': {
+    fontSize: '0.78rem',
+    lineHeight: 1.35,
+    whiteSpace: 'pre-wrap',
+    overflowWrap: 'anywhere',
+    wordBreak: 'break-word',
+  },
+} as const
+
+function cloneLinha(linha: ListaMedicamentosLinha): ListaMedicamentosLinha {
+  return { ...linha }
+}
+
+export function ListaMedicamentosForm({ value, onChange }: ListaMedicamentosFormProps) {
+  const [linhaDraft, setLinhaDraft] = useState<ListaMedicamentosLinha>(() =>
+    createEmptyListaMedicamentosLinha(),
+  )
+  const [editingLinhaId, setEditingLinhaId] = useState<string | null>(null)
+  const [entradaModalOpen, setEntradaModalOpen] = useState(false)
+  const importInputRef = useRef<HTMLInputElement | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [explicacaoOpen, setExplicacaoOpen] = useState(false)
+  const [sheetPicker, setSheetPicker] = useState<{
+    open: boolean
+    fileName: string
+    sheets: SpreadsheetSheetImport[]
+    initialSheetIndex: number
+  }>({ open: false, fileName: '', sheets: [], initialSheetIndex: 0 })
+  const [importFeedback, setImportFeedback] = useState<{
+    open: boolean
+    severity: 'success' | 'error'
+    message: string
+  }>({ open: false, severity: 'success', message: '' })
+  const [movimentacaoLinhaId, setMovimentacaoLinhaId] = useState<string | null>(null)
+
+  const movimentacaoLinha =
+    value.linhas.find((l) => l.id === movimentacaoLinhaId) ?? null
+
+  const applyImportedSheet = (sheet: SpreadsheetSheetImport) => {
+    const parsed = normalizeListaMedicamentosForm(parseListaMedicamentosFromGrid(sheet.rows))
+    if (parsed.linhas.length === 0) {
+      setImportFeedback({
+        open: true,
+        severity: 'error',
+        message:
+          'Não foi possível identificar a lista de medicamentos nessa aba. Verifique se há as colunas NEB, Medicamento, UF e Preço.',
+      })
+      return
+    }
+    onChange(mergeListaMedicamentosImport(value, parsed))
+    setImportFeedback({
+      open: true,
+      severity: 'success',
+      message: `Planilha importada${sheet.nome ? ` (aba “${sheet.nome}”)` : ''}: ${parsed.linhas.length} medicamento(s).`,
+    })
+  }
+
+  const handleImportClick = () => {
+    importInputRef.current?.click()
+  }
+
+  const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    setImporting(true)
+    try {
+      const sheets = await loadListaMedicamentosSheetsFromFile(file)
+      if (sheets.length === 0) {
+        setImportFeedback({
+          open: true,
+          severity: 'error',
+          message: 'O arquivo não contém abas legíveis.',
+        })
+        return
+      }
+      if (sheets.length === 1) {
+        applyImportedSheet(sheets[0])
+        return
+      }
+      const preferred = findListaMedicamentosSheetIndex(sheets)
+      setSheetPicker({
+        open: true,
+        fileName: file.name,
+        sheets,
+        initialSheetIndex: preferred >= 0 ? preferred : 0,
+      })
+    } catch (err) {
+      setImportFeedback({
+        open: true,
+        severity: 'error',
+        message: err instanceof Error ? err.message : 'Falha ao ler a planilha.',
+      })
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const handleConfirmSheet = (sheetIndex: number) => {
+    const sheet = sheetPicker.sheets[sheetIndex]
+    setSheetPicker({ open: false, fileName: '', sheets: [], initialSheetIndex: 0 })
+    if (sheet) applyImportedSheet(sheet)
+  }
+
+  const persistLinhas = (linhas: ListaMedicamentosLinha[]) => {
+    onChange({
+      linhas: sortListaMedicamentosLinhas(
+        linhas
+          .map(withNormalizedListaMedicamentosLinha)
+          .filter((l) => linhaListaMedicamentosHasContent(l)),
+      ),
+    })
+  }
+
+  const updateDraft = (patch: Partial<Omit<ListaMedicamentosLinha, 'id'>>) => {
+    setLinhaDraft((prev) => withNormalizedListaMedicamentosLinha({ ...prev, ...patch }))
+  }
+
+  const resetLinhaForm = () => {
+    setLinhaDraft(createEmptyListaMedicamentosLinha())
+    setEditingLinhaId(null)
+    setEntradaModalOpen(false)
+  }
+
+  const openEntradaNovo = () => {
+    setEditingLinhaId(null)
+    setLinhaDraft(createEmptyListaMedicamentosLinha())
+    setEntradaModalOpen(true)
+  }
+
+  const handleAdicionarLinha = () => {
+    const ready = withNormalizedListaMedicamentosLinha(linhaDraft)
+    if (editingLinhaId) {
+      persistLinhas(
+        value.linhas.map((l) =>
+          l.id === editingLinhaId ? { ...ready, id: editingLinhaId } : l,
+        ),
+      )
+      resetLinhaForm()
+      return
+    }
+    if (!linhaListaMedicamentosHasContent(ready) || !ready.medicamento.trim()) {
+      if (!ready.medicamento.trim()) {
+        setImportFeedback({
+          open: true,
+          severity: 'error',
+          message: 'Informe o nome do medicamento.',
+        })
+      }
+      return
+    }
+    persistLinhas([...value.linhas, ready])
+    resetLinhaForm()
+  }
+
+  const handleEditLinha = (id: string) => {
+    const found = value.linhas.find((l) => l.id === id)
+    if (!found) return
+    setEditingLinhaId(id)
+    setLinhaDraft(cloneLinha(found))
+    setEntradaModalOpen(true)
+  }
+
+  const handleDeleteLinha = (id: string) => {
+    persistLinhas(value.linhas.filter((l) => l.id !== id))
+    if (editingLinhaId === id) resetLinhaForm()
+  }
+
+  const handleCancelLinha = () => {
+    resetLinhaForm()
+  }
+
+  const handleMovimentarLinha = (id: string) => {
+    setMovimentacaoLinhaId(id)
+  }
+
+  const handleConfirmarMovimentacao = (payload: {
+    tipo: 'entrada' | 'saida'
+    qtd: string
+    data: string
+    origemDestino: string
+    responsavel: string
+    motivoNegativo?: string
+  }) => {
+    if (!movimentacaoLinhaId) return
+    const next = aplicarMovimentacaoListaMedicamentos(value, movimentacaoLinhaId, {
+      tipo: payload.tipo,
+      qtdRaw: payload.qtd,
+      data: payload.data,
+      origemDestino: payload.origemDestino,
+      responsavel: payload.responsavel,
+      motivoNegativo: payload.motivoNegativo,
+    })
+    if (next === value) {
+      setImportFeedback({
+        open: true,
+        severity: 'error',
+        message:
+          'Saída bloqueada: estoque ficaria negativo sem motivo de autorização válido.',
+      })
+      return
+    }
+    onChange(next)
+    setMovimentacaoLinhaId(null)
+    setImportFeedback({
+      open: true,
+      severity: 'success',
+      message:
+        payload.tipo === 'entrada'
+          ? `Entrada de ${payload.qtd} em ${payload.data} registrada.`
+          : payload.motivoNegativo
+            ? `Saída de ${payload.qtd} com estoque negativo autorizada.`
+            : `Saída de ${payload.qtd} em ${payload.data} registrada.`,
+    })
+  }
+
+  return (
+    <Box sx={{ width: '100%', minWidth: 0 }}>
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".xlsx,.ods,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.oasis.opendocument.spreadsheet"
+        hidden
+        onChange={handleImportFileChange}
+      />
+      <ListaMedicamentosPlanilhaPreview
+        value={value}
+        editingLinhaId={editingLinhaId}
+        importing={importing}
+        onImportClick={handleImportClick}
+        onEntradaClick={openEntradaNovo}
+        onExplicacaoClick={() => setExplicacaoOpen(true)}
+        onEditLinha={handleEditLinha}
+        onDeleteLinha={handleDeleteLinha}
+        onMovimentarLinha={handleMovimentarLinha}
+      />
+
+      <Dialog
+        open={entradaModalOpen}
+        onClose={handleCancelLinha}
+        maxWidth="sm"
+        fullWidth
+        scroll="paper"
+      >
+        <DialogTitle sx={{ pr: 6, fontWeight: 800 }}>
+          {editingLinhaId ? 'Editar medicamento' : 'Entrada de Medicamento'}
+          <IconButton
+            aria-label="Fechar"
+            onClick={handleCancelLinha}
+            size="small"
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Cada lote do mesmo medicamento deve ser uma linha (LOTE, VALIDADE e QTD próprios).
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 1.25,
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+            }}
+          >
+            <TextField
+              label="Medicamento"
+              value={linhaDraft.medicamento}
+              onChange={(e) => updateDraft({ medicamento: formatListaMedNome(e.target.value) })}
+              size="small"
+              fullWidth
+              multiline
+              minRows={2}
+              autoFocus
+              sx={multilineFieldSx}
+            />
+            <TextField
+              label="NEB"
+              value={linhaDraft.neb}
+              onChange={(e) => updateDraft({ neb: formatListaMedNeb(e.target.value) })}
+              placeholder="BR3268550"
+              size="small"
+              fullWidth
+              sx={compactFieldSx}
+            />
+            <TextField
+              label="UF"
+              value={linhaDraft.uf}
+              onChange={(e) => updateDraft({ uf: formatListaMedUf(e.target.value) })}
+              placeholder="SE"
+              size="small"
+              fullWidth
+              sx={compactFieldSx}
+            />
+            <TextField
+              label="LOTE"
+              value={linhaDraft.lote}
+              onChange={(e) => updateDraft({ lote: formatListaMedLote(e.target.value) })}
+              placeholder="Lote"
+              size="small"
+              fullWidth
+              sx={compactFieldSx}
+            />
+            <TextField
+              label="VALIDADE"
+              value={linhaDraft.validade}
+              onChange={(e) => updateDraft({ validade: formatListaMedValidade(e.target.value) })}
+              placeholder="dd/mm/aaaa"
+              size="small"
+              fullWidth
+              sx={compactFieldSx}
+            />
+            <TextField
+              label="QTD"
+              value={linhaDraft.qtd}
+              onChange={(e) => updateDraft({ qtd: formatListaMedQtd(e.target.value) })}
+              placeholder="0"
+              size="small"
+              fullWidth
+              sx={compactFieldSx}
+            />
+            <TextField
+              label="Estoque Baixo"
+              value={linhaDraft.estoqueBaixo}
+              onChange={(e) => updateDraft({ estoqueBaixo: formatListaMedQtd(e.target.value) })}
+              placeholder="Limiar de alerta"
+              size="small"
+              fullWidth
+              sx={compactFieldSx}
+            />
+            <TextField
+              label="Aviso validade (dias)"
+              value={linhaDraft.avisoValidadeDias}
+              onChange={(e) =>
+                updateDraft({
+                  avisoValidadeDias: formatListaMedAvisoValidadeDias(e.target.value),
+                })
+              }
+              placeholder="Ex.: 30"
+              size="small"
+              fullWidth
+              sx={compactFieldSx}
+            />
+            <TextField
+              label="Preço referência 2026"
+              value={linhaDraft.precoReferencia}
+              onChange={(e) => updateDraft({ precoReferencia: e.target.value })}
+              onBlur={() =>
+                updateDraft({
+                  precoReferencia: formatListaMedPreco(linhaDraft.precoReferencia),
+                })
+              }
+              placeholder="R$ 0,00"
+              size="small"
+              fullWidth
+              sx={{ ...compactFieldSx, gridColumn: { sm: '1 / -1' } }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, py: 1.5 }}>
+          <Button onClick={handleCancelLinha} sx={{ textTransform: 'none' }}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAdicionarLinha}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            {editingLinhaId ? 'Salvar medicamento' : 'Adicionar medicamento'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <ListaMedicamentoMovimentacaoModal
+        open={Boolean(movimentacaoLinha)}
+        linha={movimentacaoLinha}
+        onClose={() => setMovimentacaoLinhaId(null)}
+        onConfirm={handleConfirmarMovimentacao}
+      />
+      <ConmedEscolherAbaModal
+        open={sheetPicker.open}
+        sheetNames={sheetPicker.sheets.map((s) => s.nome)}
+        fileName={sheetPicker.fileName}
+        initialSheetIndex={sheetPicker.initialSheetIndex}
+        description={
+          sheetPicker.fileName
+            ? `O arquivo “${sheetPicker.fileName}” tem várias abas. Escolha qual aba deseja importar (ex.: Planilha1).`
+            : 'O arquivo tem várias abas. Escolha qual aba deseja importar.'
+        }
+        onCancel={() =>
+          setSheetPicker({ open: false, fileName: '', sheets: [], initialSheetIndex: 0 })
+        }
+        onConfirm={handleConfirmSheet}
+      />
+      <MedicamentoAbasExplicacaoModal
+        open={explicacaoOpen}
+        onClose={() => setExplicacaoOpen(false)}
+      />
+      <Snackbar
+        open={importFeedback.open}
+        autoHideDuration={5000}
+        onClose={() => setImportFeedback((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity={importFeedback.severity}
+          variant="filled"
+          onClose={() => setImportFeedback((prev) => ({ ...prev, open: false }))}
+        >
+          {importFeedback.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  )
+}

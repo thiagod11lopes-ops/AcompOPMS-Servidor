@@ -1,0 +1,62 @@
+REPARAR ETAPA 11/12 — App local OK, HTTPS nao respondeu
+=======================================================
+
+O que significa
+---------------
+A etapa 9 subiu o app em http://127.0.0.1:5173 (OK).
+A etapa 11 falhou ao abrir https://IP/ (gateway nginx nas
+portas 80/443, firewall ou Docker).
+
+NAO e preciso desinstalar nem apagar a pasta.
+NAO e "reverter" a instalacao — e so reparar o gateway.
+
+
+No PC onde instalou (o servidor)
+--------------------------------
+1. Abra o Docker Desktop e espere ficar Ready (verde).
+
+2. Duplo clique em:
+     Servidor-final\Reparar-Gateway-HTTPS.cmd
+   Aceite o UAC (Administrador).
+
+   (Se ainda nao tiver esse arquivo na pasta do outro PC,
+    copie de novo a pasta Servidor-final atualizada, ou rode
+    o Liberar-Firewall.cmd dentro de:
+    Arquivos\Servidor\Gereal\AcompSolemp\servidor-portatil\)
+
+3. No Chrome deste PC, teste:
+     https://10.6.168.230/
+   (use o IP que o assistente mostrou na etapa de IP)
+
+4. Volte ao assistente → "Tentar de novo" na etapa 11/12
+   OU abra o atalho "Servidor AcompOPMS" / Dashboard e
+   confira se Gateway esta Online.
+
+
+Se ainda falhar — checklist rapido
+----------------------------------
+[ ] Docker Desktop aberto e Ready
+[ ] Aceitou o UAC do reparo / Liberar-Firewall
+[ ] Porta 443 livre (outro IIS/Apache/Skype pode ocupar)
+    Comando:  netstat -ano | findstr ":443 "
+[ ] Container do gateway no ar:
+    Comando:  docker ps
+    Procure:  acomp-gateway
+[ ] Firewall corporativo nao bloqueando 80/443 neste PC
+[ ] IP da etapa 7/12 e o IP real da placa de rede
+    (nao um IP de outra rede / outro andar)
+
+
+Sobre a mensagem com dois enderecos
+-----------------------------------
+O assistente tenta varios alvos, por exemplo:
+  https://10.6.168.230/ , https://127.0.0.1/
+Se nenhum responder HTTPS, a etapa 11 marca erro.
+O app em :5173 pode continuar funcionando so neste PC;
+clientes na rede precisam do https://IP/ via gateway.
+
+
+Acesso temporario so neste PC (enquanto repara)
+-----------------------------------------------
+  http://127.0.0.1:5173/
+Isso NAO substitui o HTTPS para os outros computadores.

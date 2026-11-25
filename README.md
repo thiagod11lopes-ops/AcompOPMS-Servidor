@@ -1,29 +1,31 @@
-﻿# AcompOPMS — Pacote Servidor (offline)
+﻿# AcompOPMS — Pacote Servidor (`Servidor-final`)
 
-Pacote completo para instalar o **servidor** AcompOPMS em outro PC Windows (Dashboard verde + frontend + Supabase), com instaladores offline.
+Codigo editavel do pacote de instalacao do servidor (Dashboard verde).
 
-## Como baixar
+## Pasta no repositorio
 
-1. Abra **Releases** (lado direito desta página)
-2. Baixe `AcompOPMS-Servidor-offline.zip` da release mais recente
-3. Extraia no Desktop → pasta `Servidor-final`
-4. Duplo clique em `Instalar-Servidor-AcompOPMS.cmd`
-5. Senha: **Marinha**
+- `Servidor-final/` — fontes do pacote (scripts, frontend sem `node_modules`, Supabase, painel)
 
-## Conteúdo
+## Download completo (offline, com instaladores)
 
-- Docker Desktop, Node.js 22, VC++, WSL (instaladores)
-- Frontend + `node_modules`
-- Supabase self-hosted
-- Scripts, Dashboard, HTTPS/mkcert
+Release com ZIP (~827 MB), incluindo Docker/Node/VC++/WSL + `node_modules`:
 
-## Observações
+https://github.com/thiagod11lopes-ops/AcompOPMS-Servidor/releases/tag/v1.0.0
 
-- Instalação de programas Windows: **offline** (vêm no ZIP)
-- Na **primeira** subida do Supabase, o Docker pode precisar baixar imagens uma vez (internet)
-- Atualizações do app: pasta `atualização` (não substituir `Servidor-final` inteira)
-- Após desligar o PC: Docker Ready → atalho **Servidor AcompOPMS** → Iniciar servidor
+## Como instalar
 
-## App (código)
+1. Baixe o ZIP da Release (ou use a pasta `Servidor-final` completa)
+2. Extraia no Desktop
+3. Duplo clique em `Instalar-Servidor-AcompOPMS.cmd`
+4. Senha: **Marinha**
 
-https://github.com/thiagod11lopes-ops/AcompSolemp
+## Como alterar e publicar
+
+1. Edite os arquivos em `Servidor-final/`
+2. Commit + push neste repositorio
+3. Quando precisar de pacote offline novo, gere o ZIP e publique nova Release
+
+## Relacionado
+
+- App: https://github.com/thiagod11lopes-ops/AcompSolemp
+- Manager: https://github.com/thiagod11lopes-ops/Servidor-Manager

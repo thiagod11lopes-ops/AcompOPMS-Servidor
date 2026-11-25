@@ -1,5 +1,18 @@
-# Gerados / locais
 *.zip
 *.log
-.DS_Store
 Thumbs.db
+.DS_Store
+**/node_modules/
+**/logs/
+**/state/
+**/.vite/
+**/backups/
+**/Docker Desktop Installer.exe
+**/node-*.msi
+**/vc_redist*.exe
+**/wsl_update*.msi
+
+# Certificados locais (gerados no destino)
+**/certs/gateway.key
+**/certs/gateway.crt
+**/certs/*.key

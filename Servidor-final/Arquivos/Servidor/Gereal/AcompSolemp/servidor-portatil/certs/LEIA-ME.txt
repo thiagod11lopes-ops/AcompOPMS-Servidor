@@ -1,0 +1,2 @@
+﻿Certificados TLS sao gerados no PC servidor por Preparar-Https.ps1 / mkcert.
+Nao versionar gateway.key / gateway.crt neste repositorio.

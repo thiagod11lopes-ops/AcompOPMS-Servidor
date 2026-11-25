@@ -1,0 +1,6 @@
+﻿Os instaladores grandes (Docker, Node, VC++, WSL) nao ficam no Git
+(por causa do tamanho). Baixe o ZIP da Release:
+
+https://github.com/thiagod11lopes-ops/AcompOPMS-Servidor/releases
+
+Ou copie de uma pasta Servidor-final completa ja instalada.

@@ -1,0 +1,161 @@
+AUDITORIA DO PACOTE — Servidor final
+====================================
+Data: 2026-11-24
+Escopo: prontidao para instalar o servidor AcompOPMS em OUTRO computador
+sem os erros vistos neste PC (Vite -File / CA / health-check).
+
+VEREDITO
+--------
+O pacote TEM os programas e o codigo necessarios para uma instalacao
+offline tipica (Docker, Node, VC++, WSL, frontend com node_modules,
+Supabase, scripts, mkcert, CA).
+
+Ainda NAO esta 100% a prova de erros em outro PC, por causa de:
+  1) nome da pasta com ESPACO ("Servidor final") + varios Start-Process
+     ainda sem aspas (corrigido no assistente/Vite/CA; restam scripts
+     secundarios);
+  2) config/cert/.env ainda “carimbados” com IP deste PC
+     (192.168.1.202 / 10.6.167.66) — dependem do assistente reescrever
+     na etapa de IP + Liberar-Firewall + Iniciar-Gateway;
+  3) instaladores Docker/Node/VC++/WSL repetidos 4 vezes (~2,1 GB extras);
+  4) requisitos do Windows no PC destino (UAC, virtualizacao, reboot)
+     que nenhum arquivo da pasta pode garantir sozinho.
+
+Tamanho total aproximado: ~3,25 GB
+
+
+A) CONTEUDO OBRIGATORIO — PRESENTE
+----------------------------------
+[OK] Entrada
+    Instalar-Servidor-AcompOPMS.cmd / .ps1
+    Arquivos\Servidor\Instalar Servidor.vbs
+    senha assistente: Marinha
+
+[OK] Instaladores offline (4 itens)
+    Docker Desktop Installer.exe
+    node-v22.20.0-x64.msi
+    vc_redist.x64.exe
+    wsl_update_x64.msi
+    (copias em: Servidor final\instaladores + 3 pastas internas)
+
+[OK] Runtime do sistema
+    Gereal\AcompSolemp\frontend (+ node_modules + vite CLI)
+    Gereal\supabase-master\docker (compose + .env + volumes)
+    Gereal\AcompSolemp\supabase (SQL/migrations)
+    servidor-portatil (painel, scripts, Dashboard.vbs, gateway, nginx)
+
+[OK] HTTPS / certificado
+    tools\mkcert.exe
+    certs\gateway.crt + gateway.key
+    cliente\AcompOPMS-rootCA.pem
+    Ensure-Certificado-Confianca.ps1
+    Iniciar-Gateway.ps1 chama Preparar-Https.ps1 (regenera cert no IP novo)
+
+[OK] Fluxo das 12 etapas do assistente (scripts existentes)
+    pastas, vcredist, wsl, docker, node, npm, ip, rede,
+    servidor (Iniciar-Servidor / Start-Vite / gateway),
+    cert, health, dashboard
+
+
+B) CORRECOES JA APLICADAS NESTE PACOTE (erro das etapas 9–11)
+------------------------------------------------------------
+[OK] Assistente-Instalacao-Servidor.ps1 — Quote-ProcessArg nos -File
+[OK] Ensure-Certificado-Confianca.ps1 — aspas no RunAs
+[OK] Hub / Iniciar-Servidor / Resolver / _common / Painel — trechos criticos
+     Reproducao do bug: -File sem aspas → exit -196608
+     Com aspas → script roda; Vite respondeu HTTP 200 em :5173
+
+
+C) RISCOS QUE AINDA PODEM FALHAR EM OUTRO PC
+--------------------------------------------
+[ALTO] Pasta com espaco no nome
+    Preferivel renomear para Servidor-final (sem espaco) OU
+    completar aspas em TODOS os Start-Process -File restantes:
+      Abrir-Dashboard.ps1
+      Preparar-Https.ps1 (elevate)
+      Dns-Alias-Servidor.ps1
+      Assistente-Instalacao-Cliente.ps1
+      Minimizar-Janelas-Boot.ps1
+      cliente\Instalar-Certificado-Confianca.ps1
+      Instalar-Servidor-AcompOPMS.ps1 (fallback -File sem Quote)
+
+[ALTO] Residuos deste PC
+    config.env → SERVER_HOST=192.168.1.202, SERVER_ALIAS=10.6.167.66
+    frontend\.env → VITE_SUPABASE_URL=https://192.168.1.202
+    public\server-config.js → mesmo IP
+    certs\cert-names.txt → 192.168.1.202|127.0.0.1
+    Mitigacao no fluxo: Sync-PackConfigPaths + Set-PackConfigEnv +
+    etapa IP + Liberar-Firewall (Aplicar-Host) + Iniciar-Gateway
+    (Preparar-Https). Se pular etapas ou falhar UAC, o IP antigo fica.
+
+[MEDIO] IP fixo padrao do assistente = 10.6.167.66
+    Em outra rede o usuario DEVE escolher o IP correto na etapa 7/12.
+    Se aceitar o padrao sem conferir, health/HTTPS falham.
+
+[MEDIO] UAC obrigatorio (etapas rede + certificado)
+    Sem clicar Sim no UAC → mesmos erros 10/12 e 11/12.
+
+[MEDIO] Requisitos do PC destino (fora da pasta)
+    Windows 10/11 64-bit, virtualizacao BIOS/UEFI ligada,
+    permissao Admin, possivel reboot apos WSL/Docker,
+    Docker Desktop “Ready”, porta 80/443/5173/8000 livres.
+    Imagens Docker do Supabase: na 1ª subida pode precisar de
+    internet se nao estiverem em cache local (volumes existem;
+    imagens Docker NAO vem empacotadas no .tar tipico).
+
+[BAIXO] Quatro copias dos instaladores (~691 MB x4)
+    Nao quebra instalacao; inchaco o pendrive/copia.
+    Basta 1 pasta instaladores + sync do launcher.
+
+[BAIXO] Sem frontend\dist
+    Pacote usa Vite em modo dev (:5173). Aceitavel se Node +
+    node_modules estiverem ok (vite CLI conferido: OK).
+
+[INFO] logs\ e state\ deste PC viajam no pacote
+    Nao sao necessarios no destino; podem confundir diagnostico.
+
+
+D) CHECKLIST ANTES DE LEVAR PARA OUTRO PC
+-----------------------------------------
+[ ] Preferir copiar pasta para Desktop do destino (nao so pendrive)
+[ ] Ideal: renomear para Servidor-final (sem espaco) OU manter aspas
+[ ] Rodar Instalar-Servidor-AcompOPMS.cmd
+[ ] Senha: Marinha
+[ ] Aceitar TODOS os UAC
+[ ] Etapa IP: escolher IP da rede local (nao assumir 10.6.167.66)
+[ ] Apos WSL/Docker, reiniciar se o Windows pedir; Docker Ready
+[ ] Validar Dashboard: Docker / Supabase / Vite / Gateway Online
+[ ] Anotar https://IP/ para os clientes
+
+
+E) O QUE FALTA PARA “ZERO ERRO” (recomendado)
+--------------------------------------------
+1. Completar Quote-ProcessArg nos scripts da secao C [ALTO].
+2. No Sync-PackConfigPaths / inicio do assistente: zerar
+   SERVER_HOST legado OU forcar regeneracao de cert + Aplicar-Host
+   antes do health-check (ja parcialmente coberto).
+3. Remover 3 copias duplicadas dos instaladores (deixar 1 canonica).
+4. Opcional: empacotar imagens Docker (docker save) se o destino
+   for 100% offline sem registry.
+5. Teste real em PC limpo (VM ou maquina sem Docker/Node).
+
+
+F) MAPA RAPIDO DA PASTA
+-----------------------
+Servidor final\
+  Instalar-Servidor-AcompOPMS.cmd     ← entrada
+  instaladores\                       Docker Node VC++ WSL
+  Arquivos\Servidor\
+    Instalar Servidor.vbs
+    Gereal\
+      instaladores\                   (duplicata)
+      supabase-master\docker\         Supabase
+      AcompSolemp\
+        frontend\                     app + node_modules
+        supabase\                     SQL
+        servidor-portatil\            Dashboard + assistente
+          painel\Assistente-...ps1
+          scripts\Start-Vite.ps1 ...
+          tools\mkcert.exe
+          cliente\AcompOPMS-rootCA.pem
+          certs\gateway.*

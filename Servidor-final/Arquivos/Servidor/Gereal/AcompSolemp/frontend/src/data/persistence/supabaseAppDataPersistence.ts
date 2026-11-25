@@ -1,0 +1,184 @@
+import type { AppData } from '@/types'
+import {
+  APP_DATA_SEED_VERSION,
+  deserializeAppData,
+  serializeAppData,
+  type AppDataPersistence,
+  type AppDataSnapshot,
+} from '@/data/persistence/types'
+import { getSupabaseClient } from '@/supabase/client'
+import { getTenantId, setTenantId } from '@/services/tenantService'
+import { isImpersonationSession } from '@/config/dataSource'
+import { adminLoadAppState, adminSaveAppState } from '@/data/persistence/supabaseAdmin'
+
+/** Resolve tenant do profile Auth sem importar supabaseTenant (evita ciclo). */
+async function resolveAuthProfileTenantId(): Promise<string | null> {
+  const client = getSupabaseClient()
+  const { data: sessionData } = await client.auth.getSession()
+  const userId = sessionData.session?.user?.id
+  if (!userId) return null
+  const { data, error } = await client
+    .from('profiles')
+    .select('tenant_id')
+    .eq('id', userId)
+    .maybeSingle()
+  if (error || !data?.tenant_id) return null
+  return String(data.tenant_id)
+}
+
+export async function loadAppDataFromSupabase(
+  tenantId?: string | null,
+): Promise<AppDataSnapshot | null> {
+  const id = tenantId ?? getTenantId()
+  if (!id) return null
+
+  if (isImpersonationSession()) {
+    const snapshot = await adminLoadAppState(id)
+    if (!snapshot) return null
+    return {
+      version: snapshot.version,
+      payload: JSON.stringify(snapshot.payload),
+      updatedAt: new Date().toISOString(),
+    }
+  }
+
+  const { data, error } = await getSupabaseClient()
+    .from('app_state')
+    .select('version, payload, updated_at')
+    .eq('tenant_id', id)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!data) return null
+
+  return {
+    version: data.version as string,
+    payload:
+      typeof data.payload === 'string' ? data.payload : JSON.stringify(data.payload),
+    updatedAt: data.updated_at as string,
+  }
+}
+
+export async function saveAppDataToSupabase(
+  appData: AppData,
+  version: string = APP_DATA_SEED_VERSION,
+  tenantId?: string | null,
+): Promise<void> {
+  let id = tenantId ?? getTenantId()
+
+  if (!isImpersonationSession()) {
+    // Evita TENANT_ID local obsoleto (outra sessão) — causa
+    // "Sem permissão para salvar o estado da organização".
+    try {
+      const profileTenantId = await resolveAuthProfileTenantId()
+      if (profileTenantId && (!id || id !== profileTenantId)) {
+        id = profileTenantId
+        setTenantId(profileTenantId)
+      }
+    } catch {
+      // Segue com o tenant informado/local.
+    }
+  }
+
+  if (!id) {
+    throw new Error('Tenant não definido para salvar AppData no Supabase.')
+  }
+
+  // Fase 1: nunca persistir conteudoBase64 no monolito cloud (Storage + storagePath).
+  const { stripAnexoBase64FromAppData } = await import(
+    '@/data/persistence/appDataAnexoSanitize'
+  )
+  // Fase 9: dual-write primeiro precisa do AppData completo; o blob salva versão enxuta.
+  const appDataLeve = stripAnexoBase64FromAppData(appData)
+  const { stripNormalizedDomainsFromAppData } = await import(
+    '@/data/persistence/normalized/stripFromBlob'
+  )
+  const {
+    dualWritePlanilhasLivres,
+    mergePlanilhasLivresFromNormalized,
+    omitEmptyPlanilhasLivres,
+  } = await import('@/data/persistence/normalized/planilhasLivresSync')
+
+  // 1) SQL primeiro (fonte da verdade da aba Enviar) — antes do blob.
+  await dualWritePlanilhasLivres(appDataLeve)
+
+  // 2) Blob: sem cascas vazias; remescla o que já está na tabela SQL.
+  const appDataBlob = omitEmptyPlanilhasLivres(
+    stripNormalizedDomainsFromAppData(appDataLeve),
+  )
+  const appDataComPlanilhas = await mergePlanilhasLivresFromNormalized(appDataBlob)
+
+  const snapshot = serializeAppData(appDataComPlanilhas, version)
+  const payload = JSON.parse(snapshot.payload) as AppData
+
+  // Fase 0: inventário de tamanho do monolito (diagnóstico de egress).
+  const { logAppDataPayloadMetrics } = await import(
+    '@/data/persistence/appDataPayloadMetrics'
+  )
+  logAppDataPayloadMetrics(payload, `save tenant=${id}`)
+
+  // Dual-write dos demais domínios usa AppData leve + planilhas ricas.
+  const appDataDual = await mergePlanilhasLivresFromNormalized(appDataLeve)
+
+  if (isImpersonationSession()) {
+    await adminSaveAppState(id, snapshot.version, payload)
+    const { dualWriteNormalizedDomains } = await import(
+      '@/data/persistence/normalized/dualWriteAll'
+    )
+    await dualWriteNormalizedDomains(appDataDual)
+    return
+  }
+
+  const client = getSupabaseClient()
+
+  // RPC security definer: evita RLS no INSERT do upsert (Novo cadastro / sync).
+  const { error: rpcError } = await client.rpc('save_app_state_for_tenant', {
+    p_tenant_id: id,
+    p_version: snapshot.version,
+    p_payload: payload,
+  })
+
+  if (!rpcError) {
+    const { dualWriteNormalizedDomains } = await import(
+      '@/data/persistence/normalized/dualWriteAll'
+    )
+    await dualWriteNormalizedDomains(appDataDual)
+    return
+  }
+
+  // Fallback enquanto a migration não foi aplicada no projeto.
+  if (/could not find the function|does not exist|PGRST202/i.test(rpcError.message)) {
+    const { error } = await client.from('app_state').upsert(
+      {
+        tenant_id: id,
+        version: snapshot.version,
+        payload,
+        updated_at: snapshot.updatedAt,
+      },
+      { onConflict: 'tenant_id' },
+    )
+    if (error) throw new Error(error.message)
+    const { dualWriteNormalizedDomains } = await import(
+      '@/data/persistence/normalized/dualWriteAll'
+    )
+    await dualWriteNormalizedDomains(appDataDual)
+    return
+  }
+
+  throw new Error(rpcError.message)
+}
+
+export function createSupabaseAppDataPersistence(
+  resolveTenantId: () => string | null = getTenantId,
+): AppDataPersistence {
+  return {
+    async load() {
+      return loadAppDataFromSupabase(resolveTenantId())
+    },
+    async save(data, version) {
+      await saveAppDataToSupabase(data, version, resolveTenantId())
+    },
+  }
+}
+
+export { deserializeAppData, serializeAppData }

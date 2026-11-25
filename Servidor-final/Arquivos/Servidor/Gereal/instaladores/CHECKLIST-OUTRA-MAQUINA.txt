@@ -1,0 +1,141 @@
+CHECKLIST — Transformar outro PC no servidor da rede (AcompOPMS)
+================================================================
+
+SENHA DO ASSISTENTE: Marinha
+
+----------------------------------------------------------------
+A) O QUE COPIAR (pen drive / HD / rede)
+----------------------------------------------------------------
+
+Leve ESTAS DUAS pastas para o Desktop do PC novo:
+
+  1) instaladores
+     (esta pasta — Docker, Node, VC++, WSL + Instalar-Servidor-AcompOPMS.cmd)
+
+  2) Arquivos\Servidor
+     (pacote completo com Gereal\AcompSolemp, frontend, supabase, Dashboard)
+
+Estrutura esperada no PC novo (Area de Trabalho):
+
+  Desktop\
+    instaladores\
+      Instalar-Servidor-AcompOPMS.cmd
+      Docker Desktop Installer.exe
+      node-v22.*.msi
+      vc_redist.x64.exe
+      wsl_update_x64.msi
+      LEIA-ME.txt
+      CHECKLIST-OUTRA-MAQUINA.txt
+
+    Arquivos\
+      Servidor\
+        Instalar Servidor.vbs
+        Gereal\
+          AcompSolemp\
+            frontend\
+            servidor-portatil\
+            ...
+          supabase-master\   (ou equivalente docker)
+          instaladores\      (copia dos .exe/.msi — opcional se Desktop\instaladores existir)
+
+NAO leve so "instaladores". Sem Arquivos\Servidor o assistente nao sobe o sistema.
+
+----------------------------------------------------------------
+B) REQUISITOS DO PC NOVO
+----------------------------------------------------------------
+
+  [ ] Windows 10/11 64 bits
+  [ ] Conta com permissao de Administrador
+  [ ] Virtualizacao ligada na BIOS (para WSL/Docker)
+  [ ] Espaco livre: ideal >= 20 GB
+  [ ] Internet na 1a instalacao (Docker pode baixar imagens do Supabase)
+  [ ] Antivirus/firewall corporativo nao bloqueando Docker/Node (se houver)
+
+----------------------------------------------------------------
+C) ORDEM DE INSTALACAO NO PC NOVO
+----------------------------------------------------------------
+
+1. Copiar as pastas para o Desktop (como na secao A).
+
+2. Abrir Desktop\instaladores\Instalar-Servidor-AcompOPMS.cmd
+   (ou o atalho "Instalar Servidor AcompOPMS")
+
+3. Senha do assistente: Marinha
+
+4. Seguir as 12 etapas. O assistente usa os instaladores se Docker/Node
+   ainda nao existirem. Aceite UAC quando pedir (firewall/HTTPS/CA).
+
+5. Se pedir reinicio (Docker/WSL): reinicie, abra o Docker Desktop,
+   espere ficar Ready, e rode o instalador de novo (Tentar de novo).
+
+6. Etapa 9 = Iniciar Servidor (Supabase + Vite + gateway).
+   Se Vite falhar: use o atalho "Reiniciar Frontend AcompOPMS" e tente de novo.
+
+7. Ao final: atalho "Servidor AcompOPMS" na Area de Trabalho.
+
+----------------------------------------------------------------
+D) VALIDAR NO DASHBOARD (atalho Servidor AcompOPMS)
+----------------------------------------------------------------
+
+Abra o Dashboard verde e confira:
+
+  [ ] Docker Desktop = Online / Ready
+  [ ] Supabase = Online
+  [ ] Vite (frontend) = Online
+  [ ] Gateway (80/443) = Online
+  [ ] IP da rede aparece (ex.: https://192.168.x.x/)
+  [ ] Botao Iniciar servidor funciona; Parar tambem
+
+Teste no proprio PC servidor:
+
+  [ ] Abrir https://127.0.0.1/  (ou o IP local) — cadeado sem aviso apos confiar na CA
+  [ ] Tela de instalacao PWA / login conforme o fluxo atual
+  [ ] Login com usuario de teste (se ja houver dados) ou criar acesso
+
+Teste em OUTRO PC da mesma rede (cliente):
+
+  [ ] Mesma rede Wi-Fi/cabo que o servidor
+  [ ] Abrir https://IP-DO-SERVIDOR/  (o IP mostrado no Dashboard)
+  [ ] Confiar no certificado se o Chrome avisar (ou instalar CA do pacote)
+  [ ] Instalar PWA (atalho) e abrir login pelo atalho
+
+----------------------------------------------------------------
+E) SE ALGO FALHAR
+----------------------------------------------------------------
+
+  Docker nao Ready
+    → Abra Docker Desktop manualmente; espere "Engine running"; Tentar de novo.
+
+  Etapa 9 Vite / ERR_MODULE_NOT_FOUND
+    → Atalho "Reiniciar Frontend AcompOPMS"
+    → Ou no frontend: npm install (pasta Gereal\AcompSolemp\frontend)
+
+  Cliente nao abre / 502
+    → No Dashboard: Iniciar servidor; confira Vite + Gateway Online.
+
+  Cadeado vermelho / certificado
+    → Refaca a etapa de confianca da CA no PC (servidor e/ou cliente).
+
+  IP mudou
+    → No Dashboard use o IP atual; ou scripts Detectar-IP / Aplicar-Host do pacote.
+    → Ideal: IP fixo / reserva DHCP no roteador.
+
+  Pacote nao encontrado
+    → Confirme Desktop\Arquivos\Servidor (com Gereal dentro).
+
+----------------------------------------------------------------
+F) O QUE NAO FAZER
+----------------------------------------------------------------
+
+  - Nao use servidor.exe / Servidor Manager azul (Electron).
+  - Nao apague Arquivos\Servidor depois de instalar (e o sistema).
+  - Nao precise desinstalar Docker/Node se ja estiverem ok — o assistente detecta.
+
+----------------------------------------------------------------
+G) RESUMO RAPIDO
+----------------------------------------------------------------
+
+  Copiar:  instaladores + Arquivos\Servidor  →  Desktop do PC novo
+  Rodar:   Instalar-Servidor-AcompOPMS.cmd   (senha Marinha)
+  Usar:    atalho Servidor AcompOPMS → Iniciar → anotar https://IP/
+  Cliente: navegador no https://IP/ → instalar app → entrar pelo atalho
